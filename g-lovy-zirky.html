@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Лови зірки</title>
+<style>
+:root{--bg:#f4f1ea;--fg:#1d1d1f;--card:#fff;--star:#f2a900;--bomb:#d6453d;--basket:#2b6cb0;--muted:#6b6b70;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#14161a;--fg:#f1f1f3;--card:#1f2228;--star:#ffd24a;--bomb:#ff6b62;--basket:#5aa2ff;--muted:#9a9aa2;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#14161a;--fg:#f1f1f3;--card:#1f2228;--star:#ffd24a;--bomb:#ff6b62;--basket:#5aa2ff;--muted:#9a9aa2;color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;flex-direction:column;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+header{display:flex;justify-content:space-between;padding:12px 16px;font-size:18px;font-weight:600}
+#wrap{flex:1;position:relative;min-height:0}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:var(--card);border-radius:20px;padding:28px 24px;text-align:center;max-width:320px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+h1{margin:0 0 8px;font-size:28px}
+p{margin:6px 0;color:var(--muted);line-height:1.4}
+button{margin-top:16px;font:inherit;font-weight:600;font-size:18px;padding:12px 32px;border:0;border-radius:14px;background:var(--basket);color:#fff;cursor:pointer}
+#snd{margin:0;padding:0 4px;background:none;font-size:20px;line-height:1;color:inherit;border-radius:8px}
+</style>
+</head>
+<body>
+<header><span id="score">⭐ 0</span><span id="best">Рекорд: 0</span><span id="lives">❤️❤️❤️</span><button id="snd" aria-label="Звук">🔊</button></header>
+<div id="wrap"><canvas id="c"></canvas>
+<div id="overlay"><div class="card"><h1 id="title">Лови зірки</h1><p id="msg">Води пальцем, щоб ловити зірки ⭐ і уникати бомб 💣. Не пропускай зірки!</p><button id="go">Грати</button></div></div></div>
+<script>
+const cv=document.getElementById('c'),ctx=cv.getContext('2d');
+const $=id=>document.getElementById(id);
+let W,H,dpr,css;
+function resize(){dpr=window.devicePixelRatio||1;const r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);css=getComputedStyle(document.documentElement)}
+window.addEventListener('resize',resize);resize();
+let best=0;try{best=+localStorage.getItem('zirky-best')||0}catch(e){}
+$('best').textContent='Рекорд: '+best;
+let px=0,items=[],score=0,lives=3,running=false,t=0,last=0;
+const BW=80,BH=18;
+function pos(e){const r=cv.getBoundingClientRect();const p=e.touches?e.touches[0]:e;px=Math.max(BW/2,Math.min(W-BW/2,p.clientX-r.left))}
+['touchstart','touchmove'].forEach(n=>cv.addEventListener(n,e=>{e.preventDefault();pos(e)},{passive:false}));
+cv.addEventListener('mousemove',pos);
+let parts=[],pops=[],shake=0,flash=0,glow=0,streak=0,muted=false,AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==='suspended')AC.resume();return AC}
+function tone(f,d,type,vol,slide,delay){const a=ac();if(!a||muted)return;const o=a.createOscillator(),g=a.createGain(),s=a.currentTime+(delay||0);o.type=type;o.frequency.setValueAtTime(f,s);if(slide)o.frequency.exponentialRampToValueAtTime(slide,s+d);g.gain.setValueAtTime(vol,s);g.gain.exponentialRampToValueAtTime(.001,s+d);o.connect(g);g.connect(a.destination);o.start(s);o.stop(s+d)}
+function noise(d,vol){const a=ac();if(!a||muted)return;const n=Math.floor(a.sampleRate*d),b=a.createBuffer(1,n,a.sampleRate),c=b.getChannelData(0);for(let i=0;i<n;i++)c[i]=(Math.random()*2-1)*(1-i/n);const s=a.createBufferSource(),g=a.createGain();s.buffer=b;g.gain.value=vol;s.connect(g);g.connect(a.destination);s.start()}
+function sfx(k){if(k==='star'){const m=1+Math.min(streak,10)*.06;tone(880*m,.1,'triangle',.25,1320*m);tone(1320*m,.12,'triangle',.2,1760*m,.06)}else if(k==='bomb'){noise(.4,.5);tone(140,.4,'sawtooth',.3,40)}else if(k==='miss'){tone(300,.25,'square',.12,150)}else if(k==='over'){[392,330,262,196].forEach((f,i)=>tone(f,.3,'triangle',.25,0,i*.18))}else if(k==='start'){[523,659,784].forEach((f,i)=>tone(f,.12,'triangle',.2,0,i*.08))}}
+function burst(x,y,col,n,sp){for(let i=0;i<n;i++){const a=Math.random()*6.283,v=(.3+Math.random())*sp;parts.push({x:x,y:y,vx:Math.cos(a)*v,vy:Math.sin(a)*v-40,l:1,c:col,s:2+Math.random()*3})}}
+function pop(x,y,txt,col){pops.push({x:x,y:y,t:txt,c:col,l:1})}
+$('snd').addEventListener('click',()=>{muted=!muted;$('snd').textContent=muted?'🔇':'🔊'});
+function start(){sfx('start');score=0;lives=3;items=[];parts=[];pops=[];shake=0;flash=0;glow=0;streak=0;t=0;running=true;px=W/2;$('overlay').style.display='none';hud();last=performance.now();requestAnimationFrame(loop)}
+function hud(){$('score').textContent='⭐ '+score;$('lives').textContent='❤️'.repeat(Math.max(lives,0))||'💔'}
+function end(){running=false;if(score>best){best=score;try{localStorage.setItem('zirky-best',best)}catch(e){}$('best').textContent='Рекорд: '+best}
+$('title').textContent='Гра закінчена';$('msg').textContent='Твій рахунок: '+score+'. Рекорд: '+best;$('go').textContent='Ще раз';$('overlay').style.display='flex'}
+function loop(now){if(!running)return;const dt=Math.min((now-last)/1000,.05);last=now;t+=dt;
+const spawn=Math.max(.35,1-t*.012);
+if(Math.random()<dt/spawn){items.push({x:20+Math.random()*(W-40),y:-20,bomb:Math.random()<.22,v:140+t*3+Math.random()*60})}
+const by=H-BH-24;
+for(const it of items){it.y+=it.v*dt;
+if(it.y>by-8&&it.y<by+BH&&Math.abs(it.x-px)<BW/2+8){it.dead=true;if(it.bomb){lives--;streak=0;sfx('bomb');burst(it.x,it.y,css.getPropertyValue('--bomb'),28,260);shake=1;flash=1;try{navigator.vibrate&&navigator.vibrate(120)}catch(e){}}else{score++;streak++;sfx('star');burst(it.x,it.y,css.getPropertyValue('--star'),14,180);pop(it.x,by-14,streak>2?'+1 x'+streak:'+1',css.getPropertyValue('--star'));glow=1}hud()}
+else if(it.y>H+20){it.dead=true;if(!it.bomb){lives--;streak=0;sfx('miss');burst(it.x,H-6,'#888',8,90);shake=.4;hud()}}}
+items=items.filter(i=>!i.dead);
+shake=Math.max(0,shake-dt*2.5);glow=Math.max(0,glow-dt*4);flash=Math.max(0,flash-dt*2.5);ctx.clearRect(0,0,W,H);ctx.save();if(shake>0)ctx.translate((Math.random()-.5)*shake*12,(Math.random()-.5)*shake*12);ctx.font='28px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+for(const it of items){ctx.save();ctx.shadowColor=css.getPropertyValue(it.bomb?'--bomb':'--star');ctx.shadowBlur=14;ctx.translate(it.x,it.y);ctx.rotate(Math.sin(it.y/40+it.x)*.3);ctx.fillText(it.bomb?'💣':'⭐',0,0);ctx.restore()}
+ctx.save();ctx.shadowColor=css.getPropertyValue('--star');ctx.shadowBlur=glow*24;ctx.fillStyle=css.getPropertyValue('--basket');ctx.beginPath();ctx.roundRect(px-BW/2,by,BW,BH,9);ctx.fill();ctx.restore();
+for(const p of parts){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=400*dt;p.l-=dt*1.6;ctx.globalAlpha=Math.max(p.l,0);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,p.s,p.s)}
+parts=parts.filter(p=>p.l>0);
+ctx.font='bold 20px system-ui,sans-serif';ctx.textAlign='center';
+for(const p of pops){p.y-=50*dt;p.l-=dt*1.4;ctx.globalAlpha=Math.max(p.l,0);ctx.fillStyle=p.c;ctx.fillText(p.t,p.x,p.y)}
+pops=pops.filter(p=>p.l>0);ctx.globalAlpha=1;
+ctx.restore();
+if(flash>0){ctx.globalAlpha=flash*.3;ctx.fillStyle=css.getPropertyValue('--bomb');ctx.fillRect(0,0,W,H);ctx.globalAlpha=1}
+if(lives<=0){hud();sfx('over');end();return}
+requestAnimationFrame(loop)}
+$('go').addEventListener('click',start);
+</script>
+<a id="__home" href="index.html" aria-label="До списку ігор" style="position:fixed;left:0;top:32%;z-index:2147483647;width:26px;height:58px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);color:#fff;border-radius:0 14px 14px 0;font-size:15px;text-decoration:none;opacity:.55;-webkit-tap-highlight-color:transparent">🏠</a>
+</body>
+</html>

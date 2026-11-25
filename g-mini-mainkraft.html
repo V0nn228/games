@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Міні-Майнкрафт</title>
+<style>
+:root{--bg:#8ecdf5;--panel:rgba(20,22,30,.55);--fg:#fff;--on:rgba(255,255,255,.95);--line:rgba(255,255,255,.35);
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b1220;--panel:rgba(10,12,20,.6);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0b1220;--panel:rgba(10,12,20,.6);color-scheme:dark}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;touch-action:none}
+#c{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.ui{position:fixed;z-index:3;touch-action:none}
+#cross{left:50%;top:50%;transform:translate(-50%,-50%);font-size:26px;font-weight:300;text-shadow:0 0 4px #000;pointer-events:none}
+#bar{left:50%;top:calc(50% + 24px);width:70px;height:6px;transform:translateX(-50%);background:rgba(0,0,0,.4);border-radius:3px;overflow:hidden;display:none;pointer-events:none}
+#barf{display:block;height:100%;width:0;background:#ffd166}
+#hp{left:12px;top:calc(env(safe-area-inset-top,0px) + 14px);font-size:15px;letter-spacing:1px;display:none;text-shadow:0 1px 4px #000}
+#mode{right:12px;top:calc(env(safe-area-inset-top,0px) + 10px);border:0;border-radius:14px;background:var(--panel);color:var(--fg);font:inherit;font-weight:700;font-size:14px;padding:10px 14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#hint,#toast{left:0;right:0;text-align:center;font-size:14px;pointer-events:none;text-shadow:0 1px 6px #000;transition:opacity .6s}
+#hint{top:calc(env(safe-area-inset-top,0px) + 62px);padding:0 16px}
+#toast{top:30%;font-size:18px;font-weight:700;opacity:0}
+#joy{left:18px;bottom:calc(92px + env(safe-area-inset-bottom,0px));width:130px;height:130px;border-radius:50%;background:var(--panel);border:2px solid var(--line)}
+#knob{position:absolute;left:40px;top:40px;width:50px;height:50px;border-radius:50%;background:var(--on);opacity:.8;pointer-events:none}
+.act{border:2px solid var(--line);border-radius:50%;background:var(--panel);color:var(--fg);font-size:26px;display:flex;align-items:center;justify-content:center;padding:0;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+#bBreak{right:16px;bottom:calc(96px + env(safe-area-inset-bottom,0px));width:76px;height:76px}
+#bPlace{right:104px;bottom:calc(100px + env(safe-area-inset-bottom,0px));width:60px;height:60px}
+#bJump{right:28px;bottom:calc(182px + env(safe-area-inset-bottom,0px));width:60px;height:60px}
+#bDown{right:104px;bottom:calc(172px + env(safe-area-inset-bottom,0px));width:60px;height:60px}
+#hot{left:50%;transform:translateX(-50%);bottom:calc(10px + env(safe-area-inset-bottom,0px));display:flex;gap:5px;padding:6px;background:var(--panel);border-radius:14px}
+.slot{position:relative;width:42px;height:42px;border-radius:8px;border:2px solid transparent;box-sizing:border-box;touch-action:none}
+.slot.on{border-color:#fff}
+.slot b{position:absolute;right:2px;bottom:0;font-size:12px;text-shadow:0 1px 3px #000}
+#hurt{inset:0;background:#f00;opacity:0;pointer-events:none;transition:opacity .35s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="cross" class="ui">+</div>
+<div id="bar" class="ui"><i id="barf"></i></div>
+<div id="hp" class="ui"></div>
+<button id="mode" class="ui"></button>
+<div id="hint" class="ui">Джойстик — рух · тягни праворуч — огляд · ⛏ ламати · 🧱 ставити</div>
+<div id="toast" class="ui"></div>
+<div id="joy" class="ui"><div id="knob"></div></div>
+<button id="bJump" class="ui act">⬆</button>
+<button id="bDown" class="ui act">⬇</button>
+<button id="bPlace" class="ui act">🧱</button>
+<button id="bBreak" class="ui act">⛏</button>
+<div id="hot" class="ui"></div>
+<div id="hurt" class="ui"></div>
+<script src="three.min.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+// ---------- world ----------
+const N=40,H=32,W=new Uint8Array(N*N*H);
+const I=(x,y,z)=>(x*N+z)*H+y;
+const get=(x,y,z)=>(x<0||z<0||x>=N||z>=N||y<0||y>=H)?0:W[I(x,y,z)];
+const set=(x,y,z,b)=>{if(x<0||z<0||x>=N||z>=N||y<0||y>=H)return;W[I(x,y,z)]=b};
+const solid=(x,y,z)=>{if(x<0||z<0||x>=N||z>=N||y<0)return true;if(y>=H)return false;return W[I(x,y,z)]>0};
+const BC=[0,[.38,.68,.28],[.52,.37,.24],[.52,.52,.56],[.4,.29,.17],[.2,.5,.18],[.87,.8,.55],[.72,.55,.32]];
+const NAME=['','Трава','Земля','Камінь','Дерево','Листя','Пісок','Дошки'];
+const HARD=[0,.6,.5,1.6,1.1,.25,.4,.8];
+const SHADE=[.82,.72,1,.5,.9,.66];
+const FACES=[
+[[1,0,0],[[1,0,1],[1,0,0],[1,1,0],[1,1,1]]],
+[[-1,0,0],[[0,0,0],[0,0,1],[0,1,1],[0,1,0]]],
+[[0,1,0],[[0,1,1],[1,1,1],[1,1,0],[0,1,0]]],
+[[0,-1,0],[[0,0,0],[1,0,0],[1,0,1],[0,0,1]]],
+[[0,0,1],[[0,0,1],[1,0,1],[1,1,1],[0,1,1]]],
+[[0,0,-1],[[1,0,0],[0,0,0],[0,1,0],[1,1,0]]]];
+function bcol(b,f){if(b===1)return f===2?BC[1]:BC[2];if(b===4&&(f===2||f===3))return [.6,.46,.27];return BC[b]}
+const hm=[];
+for(let x=0;x<N;x++)for(let z=0;z<N;z++)hm[x*N+z]=Math.max(3,Math.round(9+4*Math.sin(x*.16)+3*Math.cos(z*.13)+2*Math.sin((x+z)*.11)+1.5*Math.cos((x-z)*.2)));
+const hx=N/2+3,hz=N/2+3,h0=hm[(hx+2)*N+hz+2];
+for(let a=0;a<5;a++)for(let b=0;b<5;b++)hm[(hx+a)*N+hz+b]=h0;
+for(let x=0;x<N;x++)for(let z=0;z<N;z++){const h=hm[x*N+z];for(let y=0;y<=h;y++)set(x,y,z,y===h?(h<=6?6:1):(y>=h-3?2:3))}
+for(let a=0;a<5;a++)for(let b=0;b<5;b++){for(let d=1;d<=3;d++){const edge=a===0||a===4||b===0||b===4;if(edge&&!(a===2&&b===0&&d<=2))set(hx+a,h0+d,hz+b,7)}set(hx+a,h0+4,hz+b,7)}
+let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+for(let k=0;k<22;k++){const x=3+Math.floor(rnd()*(N-6)),z=3+Math.floor(rnd()*(N-6)),h=hm[x*N+z];
+if(h<=6||(x>=hx-3&&x<=hx+7&&z>=hz-3&&z<=hz+7))continue;
+for(let i=1;i<=4;i++)set(x,h+i,z,4);
+for(let dx=-2;dx<=2;dx++)for(let dz=-2;dz<=2;dz++)for(let dy=3;dy<=4;dy++){if(Math.abs(dx)===2&&Math.abs(dz)===2)continue;if(!get(x+dx,h+dy,z+dz))set(x+dx,h+dy,z+dz,5)}
+for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)if(Math.abs(dx)+Math.abs(dz)<=1&&!get(x+dx,h+5,z+dz))set(x+dx,h+5,z+dz,5)}
+// ---------- scene ----------
+const cv=$('c'),renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.75));
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x8ecdf5);scene.fog=new THREE.Fog(0x8ecdf5,22,58);
+const cam=new THREE.PerspectiveCamera(72,1,.05,100);cam.rotation.order='YXZ';
+function rz(){renderer.setSize(innerWidth,innerHeight,false);cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix()}
+addEventListener('resize',rz);rz();
+let wm=null;
+function rebuild(){const P=[],C=[],X=[];let n=0;
+for(let x=0;x<N;x++)for(let z=0;z<N;z++)for(let y=0;y<H;y++){const b=W[I(x,y,z)];if(!b)continue;
+const j=((((x*73856093)^(y*19349663)^(z*83492791))&255)/255-.5)*.1;
+for(let f=0;f<6;f++){const d=FACES[f][0];if(y+d[1]<0||get(x+d[0],y+d[1],z+d[2]))continue;
+const c=bcol(b,f),s=SHADE[f];
+for(const v of FACES[f][1]){P.push(x+v[0],y+v[1],z+v[2]);C.push((c[0]+j)*s,(c[1]+j)*s,(c[2]+j)*s)}
+X.push(n,n+1,n+2,n,n+2,n+3);n+=4}}
+const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setAttribute('color',new THREE.Float32BufferAttribute(C,3));g.setIndex(X);
+if(wm){wm.geometry.dispose();wm.geometry=g}else{wm=new THREE.Mesh(g,new THREE.MeshBasicMaterial({vertexColors:true}));scene.add(wm)}}
+const outline=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1.006,1.006,1.006)),new THREE.LineBasicMaterial({color:0x000000}));outline.visible=false;scene.add(outline);
+// ---------- player ----------
+const topAt=(x,z)=>{for(let y=H-1;y>=0;y--)if(get(x,y,z))return y+1;return 1};
+const SX=hx-2.5,SZ=hz+2.5;
+const p={x:SX,y:topAt(Math.floor(SX),Math.floor(SZ))+.01,z:SZ,vx:0,vy:0,vz:0,g:false};
+let yaw=-2.36,pitch=-.2,creative=true,hp=10,fallMax=p.y,sel=1,jumpH=false,downH=false,mining=false,mt=0,mcell='',cool=0;
+const inv=[0,0,0,0,0,0,0,0];
+function hit(x,y,z){const x0=Math.floor(x-.3),x1=Math.floor(x+.3),z0=Math.floor(z-.3),z1=Math.floor(z+.3),y0=Math.floor(y),y1=Math.floor(y+1.79);
+for(let a=x0;a<=x1;a++)for(let b=y0;b<=y1;b++)for(let c=z0;c<=z1;c++)if(solid(a,b,c))return true;return false}
+function respawn(){p.x=SX;p.z=SZ;p.y=topAt(Math.floor(SX),Math.floor(SZ))+.01;p.vy=0;fallMax=p.y;hp=10;ui()}
+function hurt(d){hp-=d;const h=$('hurt');h.style.opacity=.45;setTimeout(()=>h.style.opacity=0,150);if(hp<=0){toast('Ти впав... відродження');respawn()}ui()}
+function step(dt){
+let nx=p.x+p.vx*dt;if(!hit(nx,p.y,p.z))p.x=nx;
+let nz=p.z+p.vz*dt;if(!hit(p.x,p.y,nz))p.z=nz;
+let ny=p.y+p.vy*dt;
+if(hit(p.x,ny,p.z)){if(p.vy<0){p.y=Math.floor(ny)+1.001;p.g=true;if(!creative&&fallMax-p.y>3)hurt(Math.floor(fallMax-p.y-3));fallMax=p.y}else p.y=Math.ceil(ny+1.8)-1.8-.001;p.vy=0}
+else{p.y=ny;p.g=false;if(p.y>fallMax||creative)fallMax=Math.max(fallMax,p.y)}}
+// ---------- ray / edit ----------
+const dir=new THREE.Vector3();
+function ray(){cam.getWorldDirection(dir);let pc=null,lx=1e9,ly=0,lz=0;
+for(let t=0;t<=5;t+=.03){const x=Math.floor(cam.position.x+dir.x*t),y=Math.floor(cam.position.y+dir.y*t),z=Math.floor(cam.position.z+dir.z*t);
+if(x===lx&&y===ly&&z===lz)continue;lx=x;ly=y;lz=z;
+if(get(x,y,z))return{c:[x,y,z],prev:pc};pc=[x,y,z]}return null}
+function breakAt(c){const b=get(c[0],c[1],c[2]);if(!b||c[1]===0)return;if(!creative)inv[b]++;set(c[0],c[1],c[2],0);rebuild();ui()}
+function place(){const r=ray();if(!r||!r.prev)return;const c=r.prev;
+if(!creative&&inv[sel]<=0){toast('Немає блоків: '+NAME[sel]);return}
+if(c[0]<p.x+.3&&c[0]+1>p.x-.3&&c[1]<p.y+1.8&&c[1]+1>p.y&&c[2]<p.z+.3&&c[2]+1>p.z-.3)return;
+set(c[0],c[1],c[2],sel);if(!creative)inv[sel]--;rebuild();ui()}
+// ---------- UI ----------
+const slots=[];
+for(let b=1;b<=7;b++){const s=document.createElement('div');s.className='slot';const c=BC[b];s.style.background='rgb('+c.map(v=>Math.round(v*255)).join(',')+')';s.innerHTML='<b></b>';s.addEventListener('pointerdown',e=>{e.preventDefault();sel=b;ui()});$('hot').appendChild(s);slots.push(s)}
+function ui(){slots.forEach((s,i)=>{const b=i+1;s.classList.toggle('on',b===sel);s.firstChild.textContent=creative?'∞':inv[b];s.style.opacity=(!creative&&!inv[b])?.45:1});
+$('mode').textContent=creative?'🎨 Творчість':'❤️ Виживання';
+$('hp').style.display=creative?'none':'block';$('hp').textContent='❤️'.repeat(Math.max(hp,0))+'🖤'.repeat(10-Math.max(hp,0));
+$('bDown').style.display=creative?'flex':'none'}
+function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,1800)}
+function toggle(){creative=!creative;p.vy=0;fallMax=p.y;mt=0;toast(creative?'Режим: творчість':'Режим: виживання');ui()}
+$('mode').addEventListener('click',toggle);
+setTimeout(()=>$('hint').style.opacity=0,9000);
+function hold(id,on,off){const e=$(id);e.addEventListener('pointerdown',ev=>{ev.preventDefault();$('hint').style.opacity=0;on()});['pointerup','pointercancel','pointerleave'].forEach(n=>e.addEventListener(n,off))}
+hold('bJump',()=>jumpH=true,()=>jumpH=false);hold('bDown',()=>downH=true,()=>downH=false);
+hold('bBreak',()=>{mining=true;cool=0},()=>{mining=false});hold('bPlace',place,()=>{});
+// joystick
+const joy=$('joy'),knob=$('knob');let jid=null,jx=0,jy=0;
+function jm(e){const r=joy.getBoundingClientRect();let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);const R=50,l=Math.hypot(dx,dy);if(l>R){dx*=R/l;dy*=R/l}jx=dx/R;jy=dy/R;knob.style.transform='translate('+dx+'px,'+dy+'px)'}
+joy.addEventListener('pointerdown',e=>{jid=e.pointerId;joy.setPointerCapture(jid);$('hint').style.opacity=0;jm(e)});
+joy.addEventListener('pointermove',e=>{if(e.pointerId===jid)jm(e)});
+['pointerup','pointercancel'].forEach(n=>joy.addEventListener(n,e=>{if(e.pointerId===jid){jid=null;jx=jy=0;knob.style.transform='translate(0,0)'}}));
+// look
+let li=null,lx=0,ly=0;
+cv.addEventListener('pointerdown',e=>{if(li!==null)return;li=e.pointerId;lx=e.clientX;ly=e.clientY;cv.setPointerCapture(li);$('hint').style.opacity=0});
+cv.addEventListener('pointermove',e=>{if(e.pointerId!==li)return;yaw-=(e.clientX-lx)*.0055;pitch=Math.max(-1.5,Math.min(1.5,pitch-(e.clientY-ly)*.0055));lx=e.clientX;ly=e.clientY});
+['pointerup','pointercancel'].forEach(n=>cv.addEventListener(n,e=>{if(e.pointerId===li)li=null}));
+// keyboard
+const K={};
+addEventListener('keydown',e=>{const k=e.key.toLowerCase();K[k]=true;if(k===' ')jumpH=true;if(k==='f')toggle();if(k>='1'&&k<='7'){sel=+k;ui()}});
+addEventListener('keyup',e=>{const k=e.key.toLowerCase();K[k]=false;if(k===' ')jumpH=false});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+// ---------- loop ----------
+let last=performance.now();
+function loop(now){const dt=Math.min((now-last)/1000,.033);last=now;
+let mx=jx+(K.d?1:0)-(K.a?1:0),mz=-jy+(K.w?1:0)-(K.s?1:0);const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}
+const sp=creative?7:4.3,fx=-Math.sin(yaw),fz=-Math.cos(yaw),rx=Math.cos(yaw),rz2=-Math.sin(yaw);
+p.vx=(fx*mz+rx*mx)*sp;p.vz=(fz*mz+rz2*mx)*sp;
+if(creative)p.vy=(jumpH?7:0)-((downH||K.shift)?7:0);
+else{p.vy=Math.max(p.vy-26*dt,-30);if(jumpH&&p.g){p.vy=8.2;p.g=false}}
+step(dt);
+cam.position.set(p.x,p.y+1.62,p.z);cam.rotation.set(pitch,yaw,0);
+const r=ray();
+if(r){outline.visible=true;outline.position.set(r.c[0]+.5,r.c[1]+.5,r.c[2]+.5)}else outline.visible=false;
+if(mining&&r){const key=r.c.join();if(key!==mcell){mcell=key;mt=0}
+if(creative){cool-=dt;if(cool<=0){breakAt(r.c);cool=.22}}
+else{mt+=dt/HARD[get(r.c[0],r.c[1],r.c[2])];if(mt>=1){breakAt(r.c);mt=0}}}
+else{mt=0;mcell=''}
+const showBar=mining&&!creative&&mt>0;$('bar').style.display=showBar?'block':'none';$('barf').style.width=Math.min(mt,1)*100+'%';
+renderer.render(scene,cam);requestAnimationFrame(loop)}
+rebuild();ui();requestAnimationFrame(loop);
+</script>
+<a id="__home" href="index.html" aria-label="До списку ігор" style="position:fixed;left:0;top:32%;z-index:2147483647;width:26px;height:58px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.4);color:#fff;border-radius:0 14px 14px 0;font-size:15px;text-decoration:none;opacity:.55;-webkit-tap-highlight-color:transparent">🏠</a>
+</body>
+</html>
