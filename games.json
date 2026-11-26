@@ -3,41 +3,45 @@
   "id": "g-lovy-zirky",
   "title": "Лови зірки",
   "emoji": "⭐",
-  "desc": "Лови зірки, уникай бомб. Керування пальцем.",
+  "desc": "Одна зірка за раз і бонуси: щит, магніт, життя.",
   "url": "g-lovy-zirky.html",
   "color": "#f2a900",
   "order": 1,
-  "added": 1794000000000
+  "added": 1794000000000,
+  "type": "2D"
  },
  {
   "id": "g-ponchyk-kliker",
   "title": "Пончик-клікер",
   "emoji": "🍩",
-  "desc": "Тапай, купуй покращення, збирай пончики.",
+  "desc": "13 покращень і ребіс з очками для вічних бонусів.",
   "url": "g-ponchyk-kliker.html",
   "color": "#e8873a",
   "order": 2,
-  "added": 1794000000000
+  "added": 1794000000000,
+  "type": "2D"
  },
  {
   "id": "g-3d-formy",
   "title": "3D форми",
   "emoji": "🧊",
-  "desc": "Крути фігури на різних фонах.",
+  "desc": "14 форм, желе від тапу й розбивання на шматки.",
   "url": "g-3d-formy.html",
   "color": "#4db8ff",
   "order": 3,
-  "added": 1794000000000
+  "added": 1794000000000,
+  "type": "3D"
  },
  {
   "id": "g-mini-mainkraft",
   "title": "Міні-Майнкрафт",
   "emoji": "🧱",
-  "desc": "Воксельний світ: виживання й творчість.",
+  "desc": "Світ 256×256 із збереженням, звичайний чи плоский.",
   "url": "g-mini-mainkraft.html",
   "color": "#5ee38f",
   "order": 4,
-  "added": 1794000000000
+  "added": 1794000000000,
+  "type": "3D"
  },
  {
   "id": "g-simulyator-shakhtarya",
@@ -47,16 +51,18 @@
   "url": "g-simulyator-shakhtarya.html",
   "color": "#c4631b",
   "order": 5,
-  "added": 1794000000000
+  "added": 1794000000000,
+  "type": "2D"
  },
  {
   "id": "g-shakhtar-3d",
   "title": "Шахтар 3D",
   "emoji": "🌋",
-  "desc": "3D-шахта: зони, магазини, 100 блоків углиб.",
+  "desc": "3D-шахта: ламай будь-який блок у колоні.",
   "url": "g-shakhtar-3d.html",
   "color": "#ff6a2a",
   "order": 6,
-  "added": 1795564800000
+  "added": 1795564800000,
+  "type": "3D"
  }
 ]

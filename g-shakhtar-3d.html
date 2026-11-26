@@ -92,11 +92,11 @@ const UD=[
 {n:'Рюкзак',e:'🎒',b:40,g:1.45,d:()=>'Місткість: '+cap()+' → '+(cap()+10)},
 {n:'Авто-копач',e:'🤖',b:200,g:1.55,d:()=>'Авто-удари: '+(S.u[2]*.6).toFixed(1)+' → '+((S.u[2]+1)*.6).toFixed(1)+' за с'},
 {n:'Удача',e:'🍀',b:120,g:1.6,d:()=>'Подвійна руда: '+Math.round(luck()*100)+'% → '+Math.round(Math.min(.6,(S.u[3]+1)*.06)*100)+'%'}];
-const freshDig=()=>ZN.map(()=>new Array(NC).fill(0));
-S={coins:0,total:0,bag:0,bv:0,u:[0,0,0,0],x:[0,0,0,0,0],zone:0,zu:[true,false,false,false,false],r:0,dig:freshDig()};
-try{const r=JSON.parse(localStorage.getItem('shakhtar3dmap-save')||'null');if(r&&Array.isArray(r.u)&&Array.isArray(r.zu)&&Array.isArray(r.x)){S={coins:+r.coins||0,total:+r.total||0,bag:+r.bag||0,bv:+r.bv||0,u:UD.map((_,i)=>+r.u[i]||0),x:ZN.map((_,i)=>+r.x[i]||0),zone:+r.zone||0,zu:ZN.map((_,i)=>!!r.zu[i]||i===0),r:+r.r||0,
-dig:ZN.map((_,i)=>Array.isArray(r.dig&&r.dig[i])&&r.dig[i].length===NC?r.dig[i].map(v=>Math.max(0,Math.min(DEEP,+v||0))):new Array(NC).fill(0))};if(!S.zu[S.zone])S.zone=0}}catch(e){}
-const save=()=>{try{localStorage.setItem('shakhtar3dmap-save',JSON.stringify(S))}catch(e){}};
+const freshRm=()=>ZN.map(()=>new Uint8Array(NC*DEEP));
+S={coins:0,total:0,bag:0,bv:0,u:[0,0,0,0],x:[0,0,0,0,0],zone:0,zu:[true,false,false,false,false],r:0,rm:freshRm()};
+try{const r=JSON.parse(localStorage.getItem('shakhtar3d2-save')||'null');if(r&&Array.isArray(r.u)&&Array.isArray(r.zu)&&Array.isArray(r.x)){S={coins:+r.coins||0,total:+r.total||0,bag:+r.bag||0,bv:+r.bv||0,u:UD.map((_,i)=>+r.u[i]||0),x:ZN.map((_,i)=>+r.x[i]||0),zone:+r.zone||0,zu:ZN.map((_,i)=>!!r.zu[i]||i===0),r:+r.r||0,
+rm:ZN.map((_,i)=>{const a=new Uint8Array(NC*DEEP),q=r.rm&&r.rm[i];if(typeof q==='string')for(let k=0;k<a.length&&k<q.length;k++)a[k]=q.charCodeAt(k)===49?1:0;return a})};if(!S.zu[S.zone])S.zone=0}}catch(e){}
+const save=()=>{try{localStorage.setItem('shakhtar3d2-save',JSON.stringify(Object.assign({},S,{rm:S.rm.map(a=>{let t='';for(let k=0;k<a.length;k++)t+=a[k]?'1':'0';return t})})))}catch(e){}};
 const rm=()=>1+.5*S.r,dm=()=>1+.25*S.r,sm=()=>rm()*(1+.1*S.x[1]);
 const dmg=n=>(1+S.u[0]+(n||0))*dm()*(1+.4*S.x[4]),cap=()=>15+S.u[1]*10+25*S.x[3],auto=()=>S.u[2]*.6,luck=()=>Math.min(.6,S.u[3]*.06),critCh=()=>Math.min(.6,S.x[2]*.08);
 const ucost=i=>Math.ceil(UD[i].b*Math.pow(UD[i].g,S.u[i])),xcost=()=>{const x=ZN[S.zone].x;return Math.ceil(x.b*Math.pow(x.g,S.x[S.zone]))};
@@ -196,8 +196,8 @@ const typeAt=(i,c,k)=>hsh(i+1,c,k)<.25+k*.004?ZN[i].t[1]:ZN[i].t[0];
 const ICOL=t=>(t.c==='#8c8f96'&&t.dot)?t.dot:t.c;
 let mine=null;
 function buildMine(i){if(mine){scene.remove(mine.g);mine.mesh.dispose();mine.cs.geometry.dispose();mine.cs.material.dispose();mine=null}
-const g=new THREE.Group(),Oz=i*PITCH,d=S.dig[i],mesh=new THREE.InstancedMesh(BGEO,BMAT,NC*DEEP),m=new THREE.Matrix4(),col=new THREE.Color();
-for(let c=0;c<NC;c++){const cx=GX+(c%COLS+.5)*B,cz=Oz+GZ+(Math.floor(c/COLS)+.5)*B;for(let k=0;k<DEEP;k++){const id=c*DEEP+k;if(k>=d[c])m.makeTranslation(cx,-(k+.5)*B,cz);else m.copy(ZERO);mesh.setMatrixAt(id,m);col.set(ICOL(typeAt(i,c,k)));col.multiplyScalar(.86+hsh(c,k,7)*.28);mesh.setColorAt(id,col)}}
+const g=new THREE.Group(),Oz=i*PITCH,d=S.rm[i],mesh=new THREE.InstancedMesh(BGEO,BMAT,NC*DEEP),m=new THREE.Matrix4(),col=new THREE.Color();
+for(let c=0;c<NC;c++){const cx=GX+(c%COLS+.5)*B,cz=Oz+GZ+(Math.floor(c/COLS)+.5)*B;for(let k=0;k<DEEP;k++){const id=c*DEEP+k;if(!d[c*DEEP+k])m.makeTranslation(cx,-(k+.5)*B,cz);else m.copy(ZERO);mesh.setMatrixAt(id,m);col.set(ICOL(typeAt(i,c,k)));col.multiplyScalar(.86+hsh(c,k,7)*.28);mesh.setColorAt(id,col)}}
 mesh.frustumCulled=false;mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);g.add(mesh);
 const cs=new THREE.Mesh(new THREE.BoxGeometry(COLS*B+.04,DEEP*B,ROWS*B+.04),new THREE.MeshLambertMaterial({map:tileTex('#3a3a46',10,24),side:THREE.BackSide}));
 cs.position.set(GX+COLS*B/2,-DEEP*B/2,Oz+GZ+ROWS*B/2);g.add(cs);scene.add(g);mine={i:i,g:g,mesh:mesh,cs:cs}}
@@ -209,18 +209,25 @@ const ov=new THREE.Mesh(new THREE.BoxGeometry(B*1.015,B*1.015,B*1.015),new THREE
 const hc=document.createElement('canvas');hc.width=128;hc.height=16;const hs=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(hc),depthTest:false}));hs.scale.set(2.2,.28,1);hs.visible=false;hs.renderOrder=4;scene.add(hs);
 function barUp(){const x=hc.getContext('2d');x.clearRect(0,0,128,16);x.fillStyle='rgba(0,0,0,.55)';x.fillRect(0,0,128,16);x.fillStyle='#ff6b6b';x.fillRect(2,2,124*Math.max(0,tb.hp/tb.max),12);hs.material.map.needsUpdate=true}
 // ---- state ----
-let px=PINK.x,pz=PINK.z,py=0,pvy=0,cyaw=0,cpitch=.5,jx=0,jy=0,mineCol=-1,btnMine=false,macc=0,aacc=0,mining=0,lastFull=0,punch=0,tb=null,K={};
+let px=PINK.x,pz=PINK.z,py=0,pvy=0,cyaw=0,cpitch=.5,jx=0,jy=0,mineB=null,btnMine=false,macc=0,aacc=0,mining=0,lastFull=0,punch=0,tb=null,K={};
 const REACH=6.2;
-const gy=(x,z)=>{const c=colAt(x,z);return c<0?0:-S.dig[S.zone][c]*B};
-function reachOK(c){const d=S.dig[S.zone][c];if(d>=DEEP)return false;const b=bc(S.zone,c,d);return b.y<=py+2.6&&Math.hypot(px-b.x,py+1-b.y,pz-b.z)<=REACH}
-function digTarget(){if(!mine)return -1;const f=pl.rotation.y,fx=Math.sin(f),fz=Math.cos(f);for(const dd of [1.7,0]){const c=colAt(px+fx*dd,pz+fz*dd);if(c>=0&&reachOK(c))return c}return -1}
-function hitCol(c,manual){const d=S.dig[S.zone];if(c<0)return;if(d[c]>=DEEP){if(manual)toast('Дно шахти 🪨');return}
+function solidAt(x,y,z){const lx=x-GX,lz=z-S.zone*PITCH-GZ;if(lx<0||lz<0||lx>=COLS*B||lz>=ROWS*B)return y<0;if(y>=0)return false;const k=Math.floor(-y/B);if(k>=DEEP)return true;return !S.rm[S.zone][(Math.floor(lz/B)*COLS+Math.floor(lx/B))*DEEP+k]}
+function hitBox(x,y,z){for(const a of [-.4,.4])for(const b of [-.4,.4])for(const h of [.02,.9,1.75])if(solidAt(x+a,y+h,z+b))return true;return false}
+function floorHit(x,y,z){for(const a of [-.4,.4])for(const b of [-.4,.4])if(solidAt(x+a,y,z+b))return true;return false}
+function blkAt(x,y,z){const lx=x-GX,lz=z-S.zone*PITCH-GZ;if(lx<0||lz<0||lx>=COLS*B||lz>=ROWS*B||y>=0)return null;const k=Math.floor(-y/B);if(k>=DEEP)return null;return{c:Math.floor(lz/B)*COLS+Math.floor(lx/B),k:k}}
+const gone=(c,k)=>S.rm[S.zone][c*DEEP+k]===1;
+function reachBlk(c,k){const b=bc(S.zone,c,k);return Math.hypot(px-b.x,py+1-b.y,pz-b.z)<=REACH}
+function digTarget(){if(!mine)return null;const f=pl.rotation.y,fx=Math.sin(f),fz=Math.cos(f);
+for(const q of [[1.6,1.0],[1.6,.2],[1.6,-1.0],[0,-.5],[1.6,-2.2]]){const b=blkAt(px+fx*q[0],py+q[1],pz+fz*q[0]);if(b&&!gone(b.c,b.k)&&reachBlk(b.c,b.k))return b}return null}
+function hitBlk(c,k,manual){if(gone(c,k))return;
 if(S.bag>=cap()){const n=performance.now();if(manual&&n-lastFull>900){lastFull=n;toast('🎒 Рюкзак повний! Йди до скупки 💰');sfx('err')}return}
-const k=d[c];if(!tb||tb.c!==c||tb.k!==k){const t=typeAt(S.zone,c,k),mx=t.hp*(1+k*.03);tb={c:c,k:k,t:t,max:mx,hp:mx,v:t.v*(1+k*.05),cr:mkCracks()}}
+if(!tb||tb.c!==c||tb.k!==k){const t=typeAt(S.zone,c,k),mx=t.hp*(1+k*.03);tb={c:c,k:k,t:t,max:mx,hp:mx,v:t.v*(1+k*.05),cr:mkCracks()}}
 let dd=dmg(),crit=Math.random()<critCh();if(crit)dd*=3;tb.hp-=dd;punch=1;mining=.3;
 const b=bc(S.zone,c,k),P=new THREE.Vector3(b.x,b.y,b.z);burst3(P,ICOL(tb.t),5,6);pop3(new THREE.Vector3(b.x,b.y+B*.7,b.z),(crit?'КРИТ ':'')+fmt(dd),crit?'crit':'');if(manual)sfx('hit');
 if(tb.hp<=0){S.bag++;const dbl=Math.random()<luck();S.bv+=tb.v*(dbl?2:1);burst3(P,ICOL(tb.t),22,9);if(dbl)pop3(new THREE.Vector3(b.x,b.y+B*1.2,b.z),'x2 жила!','gold');sfx('break');
-mine.mesh.setMatrixAt(c*DEEP+k,ZERO);mine.mesh.instanceMatrix.needsUpdate=true;d[c]++;tb=null;ov.visible=false;hs.visible=false;if(S.bag>=cap())toast('🎒 Рюкзак повний — до скупки 💰!')}
+mine.mesh.setMatrixAt(c*DEEP+k,ZERO);mine.mesh.instanceMatrix.needsUpdate=true;S.rm[S.zone][c*DEEP+k]=1;tb=null;ov.visible=false;hs.visible=false;
+if(mineB&&mineB.c===c&&mineB.k===k)mineB=(k+1<DEEP&&!gone(c,k+1))?{c:c,k:k+1}:null;
+if(S.bag>=cap())toast('🎒 Рюкзак повний — до скупки 💰!')}
 else{kx.clearRect(0,0,96,96);drawCracks(kx,96,1-tb.hp/tb.max,tb.cr);kt.needsUpdate=true;ov.visible=true;barUp();hs.visible=true}}
 // ---- rooms helpers ----
 function walk(x,z){for(let i=0;i<5;i++){const lz=z-i*PITCH;if(Math.abs(x)<=14.55&&Math.abs(lz)<=14.55)return true;
@@ -230,18 +237,18 @@ function rectNear(s,m){const dx=Math.max(Math.abs(px-s.x)-s.w/2,0),dz=Math.max(M
 function sell(){if(S.bag<=0||!rectNear(STALL,3.3))return;const g=S.bv*sm();S.coins+=g;S.total+=g;S.bag=0;S.bv=0;sfx('sell');
 const P=new THREE.Vector3(STALL.x,2,S.zone*PITCH+STALL.z);burst3(P,0xffd166,26,9);pop3(new THREE.Vector3(P.x,3.2,P.z),'+'+fmt(g)+' 🪙','gold');save();ui()}
 $('bSell').addEventListener('click',()=>{ac();sell()});
-function teleport(i,force){$('fade').style.opacity=1;sfx('tp');setTimeout(()=>{px=PINK.x;pz=i*PITCH+PINK.z;py=0;pvy=0;mineCol=-1;if(S.zone!==i||force)setCur(i);burst3(new THREE.Vector3(px,1,pz),0xff3ea5,24,8);$('fade').style.opacity=0},220)}
+function teleport(i,force){$('fade').style.opacity=1;sfx('tp');setTimeout(()=>{px=PINK.x;pz=i*PITCH+PINK.z;py=0;pvy=0;mineB=null;if(S.zone!==i||force)setCur(i);burst3(new THREE.Vector3(px,1,pz),0xff3ea5,24,8);$('fade').style.opacity=0},220)}
 $('bTele').addEventListener('click',()=>{ac();teleport(S.zone)});
 function unlock(){const i=S.zone;if(i>=4||S.zu[i+1])return;const z=ZN[i+1];if(S.coins<z.cost){toast('Потрібно 🪙 '+fmt(z.cost));sfx('err');return}S.coins-=z.cost;S.zu[i+1]=true;syncGates();sfx('zone');toast('Зону відкрито: '+z.n+'! 🔓');burst3(new THREE.Vector3(CORX,2,i*PITCH+19),0x5aa2ff,30,10);save();ui()}
 $('bGate').addEventListener('click',()=>{ac();unlock()});
 // input
 const rc=new THREE.Raycaster(),nd=new THREE.Vector2();
-function pickCol(cx,cy){if(!mine)return -1;nd.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);rc.setFromCamera(nd,cam);const h=rc.intersectObject(mine.mesh);return h.length&&h[0].instanceId!=null?Math.floor(h[0].instanceId/DEEP):-1}
+function pickBlk(cx,cy){if(!mine)return null;nd.set(cx/innerWidth*2-1,-(cy/innerHeight)*2+1);rc.setFromCamera(nd,cam);const h=rc.intersectObject(mine.mesh);return h.length&&h[0].instanceId!=null?{c:Math.floor(h[0].instanceId/DEEP),k:h[0].instanceId%DEEP}:null}
 let cp=null,lx=0,ly=0;
-cv.addEventListener('pointerdown',e=>{if(cp!==null)return;e.preventDefault();ac();cp=e.pointerId;cv.setPointerCapture(cp);lx=e.clientX;ly=e.clientY;const c=pickCol(e.clientX,e.clientY);
-if(c>=0){if(!reachOK(c)&&S.dig[S.zone][c]<DEEP){toast('Підійди ближче до блока');sfx('err')}else{mineCol=c;macc=0;hitCol(c,true)}}});
-cv.addEventListener('pointermove',e=>{if(e.pointerId!==cp||mineCol>=0)return;cyaw-=(e.clientX-lx)*.006;cpitch=Math.max(.15,Math.min(1.2,cpitch+(e.clientY-ly)*.005));lx=e.clientX;ly=e.clientY});
-['pointerup','pointercancel'].forEach(n=>cv.addEventListener(n,e=>{if(e.pointerId===cp){cp=null;mineCol=-1}}));
+cv.addEventListener('pointerdown',e=>{if(cp!==null)return;e.preventDefault();ac();cp=e.pointerId;cv.setPointerCapture(cp);lx=e.clientX;ly=e.clientY;const b=pickBlk(e.clientX,e.clientY);
+if(b){if(!reachBlk(b.c,b.k)){toast('Підійди ближче до блока');sfx('err')}else{mineB=b;macc=0;hitBlk(b.c,b.k,true)}}});
+cv.addEventListener('pointermove',e=>{if(e.pointerId!==cp||mineB)return;cyaw-=(e.clientX-lx)*.006;cpitch=Math.max(.15,Math.min(1.2,cpitch+(e.clientY-ly)*.005));lx=e.clientX;ly=e.clientY});
+['pointerup','pointercancel'].forEach(n=>cv.addEventListener(n,e=>{if(e.pointerId===cp){cp=null;mineB=null}}));
 const joy=$('joy'),knob=$('knob');let jid=null;
 function jm(e){const r=joy.getBoundingClientRect();let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);const R=48,l=Math.hypot(dx,dy);if(l>R){dx*=R/l;dy*=R/l}jx=dx/R;jy=dy/R;knob.style.transform='translate('+dx+'px,'+dy+'px)'}
 joy.addEventListener('pointerdown',e=>{jid=e.pointerId;joy.setPointerCapture(jid);ac();jm(e)});
@@ -262,7 +269,7 @@ xr.addEventListener('click',()=>{const c=xcost();if(S.coins<c){sfx('err');return
 p.insertAdjacentHTML('beforeend','<div class="h">Загальні покращення</div>');
 UD.forEach((u,i)=>{const b=document.createElement('button');b.className='row';b.innerHTML='<span class="ic">'+u.e+'</span><span class="t"><b>'+u.n+'<em></em></b><small></small></span><span class="c"></span>';b.addEventListener('click',()=>{const c=ucost(i);if(S.coins<c){sfx('err');return}S.coins-=c;S.u[i]++;sfx('buy');save();ui()});p.appendChild(b);ur.push(b)})}
 let rt=0;$('rb').addEventListener('click',()=>{if(S.total<need())return;if(!rt){$('rb').textContent='Точно? Тисни ще раз';rt=setTimeout(()=>{rt=0;$('rb').textContent='♻️ Переродитися'},3000);return}
-clearTimeout(rt);rt=0;$('rb').textContent='♻️ Переродитися';S.r++;S.coins=0;S.total=0;S.bag=0;S.bv=0;S.u=[0,0,0,0];S.x=[0,0,0,0,0];S.zu=[true,false,false,false,false];S.dig=freshDig();tb=null;syncGates();sfx('rebirth');toast('Переродження! Множник ×'+rm());openTab(-1);
+clearTimeout(rt);rt=0;$('rb').textContent='♻️ Переродитися';S.r++;S.coins=0;S.total=0;S.bag=0;S.bv=0;S.u=[0,0,0,0];S.x=[0,0,0,0,0];S.zu=[true,false,false,false,false];S.rm=freshRm();tb=null;syncGates();sfx('rebirth');toast('Переродження! Множник ×'+rm());openTab(-1);
 teleport(0,true);save()});
 function setCur(i){S.zone=i;const z=ZN[i];scene.background=new THREE.Color(z.sky);scene.fog=new THREE.Fog(z.sky,34,80);amb.color.set(z.amb[0]);amb.intensity=z.amb[1];sun.intensity=z.sun;
 pls.forEach(l=>{l.color.set(z.acc);l.intensity=z.pt;l.position.set(l.userData.o[0],l.userData.o[1],l.userData.o[2]+i*PITCH)});
@@ -271,7 +278,7 @@ function ui(){
 $('coins').textContent='🪙 '+fmt(S.coins);
 $('bagf').style.width=Math.min(100,S.bag/cap()*100)+'%';$('bagf').style.background=S.bag>=cap()?'#ff6b6b':'';
 $('bagt').textContent='🎒 '+S.bag+'/'+cap()+' · 💰 '+fmt(S.bv*sm())+(S.r?' · ×'+rm():'');
-const c=colAt(px,pz);$('zname').textContent=ZN[S.zone].e+' '+ZN[S.zone].n+(c>=0?' · ⬇ глибина '+S.dig[S.zone][c]+'/'+DEEP:'');
+const c=colAt(px,pz);$('zname').textContent=ZN[S.zone].e+' '+ZN[S.zone].n+(c>=0?' · ⬇ глибина '+Math.max(0,Math.floor(-py/B))+'/'+DEEP:'');
 if(cur===0&&xr){const z=ZN[S.zone],cc=xcost();xr.querySelector('em').textContent='Рів. '+S.x[S.zone];xr.querySelector('small').textContent=z.x.d();xr.querySelector('.c').textContent='🪙 '+fmt(cc);xr.disabled=S.coins<cc;
 UD.forEach((u,i)=>{const r=ur[i],q=ucost(i);r.querySelector('em').textContent='Рів. '+S.u[i];r.querySelector('small').textContent=u.d();r.querySelector('.c').textContent='🪙 '+fmt(q);r.disabled=S.coins<q})}
 if(cur===1){const n=need(),ok=S.total>=n;$('rinfo').innerHTML='Скинь прогрес (монети, прокачку, зони, шахти) і отримай <b>постійний множник</b>: монети ×'+(1+.5*(S.r+1))+', сила удару ×'+(1+.25*(S.r+1))+'.<br>Зароблено за забіг: <b>'+fmt(S.total)+'</b> з '+fmt(n)+'.';$('rbar').style.width=Math.min(100,S.total/n*100)+'%';$('rb').disabled=!ok}}
@@ -281,18 +288,18 @@ function loop(now){const dt=Math.min((now-last)/1000,.05);last=now;T+=dt;
 const zi=Math.max(0,Math.min(4,Math.floor((pz+15)/PITCH)));if(zi!==S.zone)setCur(zi);
 let mx=jx+(K.d?1:0)-(K.a?1:0),mz=-jy+(K.w?1:0)-(K.s?1:0);const l=Math.hypot(mx,mz);if(l>1){mx/=l;mz/=l}
 const sp=6*(1+.08*S.x[0]),fx=-Math.sin(cyaw),fz=-Math.cos(cyaw),rx=Math.cos(cyaw),rz2=-Math.sin(cyaw),vx=(fx*mz+rx*mx)*sp,vz=(fz*mz+rz2*mx)*sp;
-const tryMove=(nx,nz)=>{if(!walk(nx,nz))return;if(gy(nx,nz)-py>.9)return;px=nx;pz=nz};tryMove(px+vx*dt,pz);tryMove(px,pz+vz*dt);
+const tryMove=(nx,nz)=>{if(!walk(nx,nz))return;if(hitBox(nx,py,nz))return;px=nx;pz=nz};tryMove(px+vx*dt,pz);tryMove(px,pz+vz*dt);
 const Oz=S.zone*PITCH;
 for(const s of [SHOP,STALL]){const x0=s.x-s.w/2-.45,x1=s.x+s.w/2+.45,z0=Oz+s.z-s.d/2-.45,z1=Oz+s.z+s.d/2+.45;if(px>x0&&px<x1&&pz>z0&&pz<z1){const a=px-x0,b=x1-px,c=pz-z0,d=z1-pz,m=Math.min(a,b,c,d);if(m===a)px=x0;else if(m===b)px=x1;else if(m===c)pz=z0;else pz=z1}}
-const g=gy(px,pz);if(py>g||pvy>0){pvy-=28*dt;py+=pvy*dt;if(py<=g){py=g;pvy=0}}else{py=g;pvy=0}
+pvy=Math.max(pvy-28*dt,-30);const ny=py+pvy*dt;if(floorHit(px,ny,pz)){py=-Math.floor(-ny/B)*B+.001;pvy=0}else py=ny;
 // mining
-let tgt=-1;if(mineCol>=0)tgt=mineCol;else if(btnMine)tgt=digTarget();
-if(tgt>=0){macc+=dt;if(macc>=.17){macc=0;if(reachOK(tgt)||S.dig[S.zone][tgt]>=DEEP)hitCol(tgt,true);else if(mineCol>=0)mineCol=-1}}
-if(auto()>0){aacc+=auto()*dt;while(aacc>=1){aacc-=1;const c=digTarget();if(c>=0)hitCol(c,false)}}
+let tgt=null;if(mineB&&!gone(mineB.c,mineB.k))tgt=mineB;else if(btnMine)tgt=digTarget();
+if(tgt){macc+=dt;if(macc>=.17){macc=0;if(reachBlk(tgt.c,tgt.k))hitBlk(tgt.c,tgt.k,true);else if(mineB)mineB=null}}
+if(auto()>0){aacc+=auto()*dt;while(aacc>=1){aacc-=1;const t=digTarget();if(t)hitBlk(t.c,t.k,false)}}
 mining=Math.max(0,mining-dt);punch=Math.max(0,punch-dt*6);
 if(tb&&mine){const b=bc(S.zone,tb.c,tb.k);ov.position.set(b.x,b.y,b.z);ov.scale.setScalar(1-.05*punch);hs.position.set(b.x,b.y+B*.62+.3,b.z)}
 // player visuals
-pl.position.set(px,py,pz);let tr=pl.rotation.y;if(tgt>=0&&S.dig[S.zone][tgt]<DEEP){const b=bc(S.zone,tgt,S.dig[S.zone][tgt]);tr=Math.atan2(b.x-px,b.z-pz)}else if(l>.1)tr=Math.atan2(vx,vz);
+pl.position.set(px,py,pz);let tr=pl.rotation.y;if(tgt){const b=bc(S.zone,tgt.c,tgt.k);tr=Math.atan2(b.x-px,b.z-pz)}else if(l>.1)tr=Math.atan2(vx,vz);
 let dd=tr-pl.rotation.y;dd=Math.atan2(Math.sin(dd),Math.cos(dd));pl.rotation.y+=dd*Math.min(1,dt*12);
 const w=l>.1?Math.sin(T*11)*.7:0;legL.rotation.x=w;legR.rotation.x=-w;armL.rotation.x=-w*.8;arm.rotation.x=mining>0?-.4-Math.abs(Math.sin(T*16))*1.6:w*.8;
 lamp.position.set(px,py+2.4,pz);

@@ -20,6 +20,7 @@ header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
 h1{flex:1;margin:0;font-size:26px;text-shadow:0 2px 10px rgba(0,0,0,.6)}
 .ib{width:44px;height:44px;border-radius:14px;border:1px solid var(--line);background:var(--glass);color:var(--fg);font-size:20px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);padding:0;cursor:pointer}
 .ib.on{background:var(--acc);color:#04142b}
+#tabs{display:flex;gap:8px;margin-bottom:12px}#tabs button{flex:1;border:1px solid var(--line);background:var(--glass);color:var(--fg);border-radius:14px;padding:11px;font:inherit;font-weight:800;font-size:15px;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}#tabs button.on{background:var(--acc);color:#04142b;border-color:transparent}
 #hero{display:none;width:100%;margin-bottom:14px;border:1px solid var(--line);border-radius:20px;padding:14px 16px;background:linear-gradient(120deg,var(--acc),rgba(255,255,255,.08));color:#04142b;font:inherit;font-weight:800;font-size:17px;text-align:left;cursor:pointer;text-decoration:none;align-items:center;gap:12px}
 #hero span{font-size:34px}
 #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(var(--cw),1fr));gap:12px}
@@ -62,6 +63,7 @@ select{background:#232733;color:#fff;border:1px solid var(--line);border-radius:
 <div id="bg"></div><div id="dim"></div>
 <div id="app">
 <header><h1>🎮 Мої ігри</h1><button class="ib" id="mp" aria-label="Музика">🎵</button><button class="ib" id="mn" aria-label="Наступний трек">⏭</button><button class="ib" id="bset" aria-label="Налаштування">⚙️</button></header>
+<div id="tabs"><button data-c="all">🎮 Усі</button><button data-c="2D">2D</button><button data-c="3D">3D</button></div>
 <a id="hero" target="_blank" rel="noopener"></a>
 <div id="grid"></div>
 <div id="msg">Завантажую ігри…</div>
@@ -95,7 +97,7 @@ select{background:#232733;color:#fff;border:1px solid var(--line);border-radius:
 <script>
 const $=id=>document.getElementById(id);
 const LS={get(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
-let ST=Object.assign({bg:0,dim:25,acc:'#5aa2ff',on:false,vol:50,src:'g0',card:'m',tab:true},LS.get('hub-st',{}));
+let ST=Object.assign({bg:0,dim:25,acc:'#5aa2ff',on:false,vol:50,src:'g0',card:'m',tab:true,cat:'all'},LS.get('hub-st',{}));
 const saveST=()=>LS.set('hub-st',ST);
 function toast(t){const e=$('toast');e.textContent=t;e.style.opacity=1;clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.opacity=0,2400)}
 // ---- file storage (IndexedDB) ----
@@ -127,7 +129,7 @@ $('fbg').addEventListener('change',async e=>{const f=e.target.files[0];e.target.
 $('bgrm').addEventListener('click',async()=>{await fdel('bg');if(bgURL)URL.revokeObjectURL(bgURL);bgURL=null;if(ST.bg==='custom')ST.bg=0;saveST();look()});
 $('dimr').addEventListener('input',e=>{ST.dim=+e.target.value;$('dim').style.opacity=ST.dim/100});$('dimr').addEventListener('change',saveST);
 $('csz').addEventListener('change',e=>{ST.card=e.target.value;saveST();look()});
-$('rst').addEventListener('click',()=>{ST={bg:0,dim:25,acc:'#5aa2ff',on:false,vol:50,src:'g0',card:'m',tab:true};saveST();stopMusic();syncForm();look();render();toast('Налаштування скинуто')});
+$('rst').addEventListener('click',()=>{ST={bg:0,dim:25,acc:'#5aa2ff',on:false,vol:50,src:'g0',card:'m',tab:true,cat:'all'};saveST();stopMusic();syncForm();look();render();toast('Налаштування скинуто')});
 // ---- music ----
 let AC=null,mst=null,tmr=null,step=0,nextT=0,playing=false,ti=0,tcur='';const aud=new Audio();
 const PRE=[
@@ -163,6 +165,7 @@ function syncForm(){$('dimr').value=ST.dim;$('mvol').value=ST.vol;$('msrc').valu
 let unlocked=false;addEventListener('pointerdown',()=>{if(unlocked)return;unlocked=true;if(ST.on&&!playing)startMusic()},{capture:true});
 let dip=null;addEventListener('beforeinstallprompt',e=>{e.preventDefault();dip=e;$('binst').textContent='📲 Встановити застосунок'});
 if(matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone)$('binst').style.display='none';
+document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',()=>{ST.cat=b.dataset.c;saveST();render()}));
 // ---- modals ----
 function openM(id){$(id).classList.add('open')}
 document.querySelectorAll('.modal').forEach(m=>{m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open')});m.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>m.classList.remove('open')))});
@@ -174,7 +177,8 @@ const okUrl=u=>typeof u==='string'&&/^[\w.-]+\.html$/.test(u);
 function launch(g){last=g.id;LS.set('hub-last',last)}
 function render(){const grid=$('grid');grid.innerHTML='';const hero=$('hero');hero.style.display='none';
 if(games===null)return;
-const L=games.filter(g=>okUrl(g.url)).sort((a,b)=>(favs.includes(b.id)-favs.includes(a.id))||((a.order||0)-(b.order||0)));
+document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.c===ST.cat));
+const L=games.filter(g=>okUrl(g.url)&&(ST.cat==='all'||g.type===ST.cat)).sort((a,b)=>(favs.includes(b.id)-favs.includes(a.id))||((a.order||0)-(b.order||0)));
 $('msg').style.display=L.length?'none':'block';if(!L.length)$('msg').textContent='Поки що тут порожньо. Нові ігри з’являться самі, щойно вони будуть готові.';
 const lg=L.find(g=>g.id===last);
 if(lg){hero.style.display='flex';hero.href=lg.url;hero.target='_self';hero.textContent='';const s=document.createElement('span');s.textContent=lg.emoji||'🎮';const t=document.createElement('div');t.textContent='▶ Продовжити: '+(lg.title||'гру');hero.append(s,t)}
